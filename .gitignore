@@ -8,9 +8,6 @@ logs/
 # System files
 .DS_Store
 
-# Uploads
-uploads/
-
 # Local credentials
 .env
 visionfi_service_account.json
