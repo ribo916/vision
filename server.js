@@ -11,7 +11,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 const app = express();
-const PORT = 3000;
+const PORT = process.env.PORT || 3000;
 
 // Set view engine and views directory
 app.set('view engine', 'ejs');
@@ -23,46 +23,99 @@ app.use(express.static('public'));
 // Setup multer for file uploads
 const upload = multer({ dest: 'uploads/' });
 
+// Cache for workflow information
+let workflowCache = null;
+let lastWorkflowFetch = 0;
+const WORKFLOW_CACHE_DURATION = 3600000; // 1 hour in milliseconds
+
+// Function to get workflows with caching
+async function getWorkflows(client) {
+    const now = Date.now();
+    if (workflowCache && (now - lastWorkflowFetch) < WORKFLOW_CACHE_DURATION) {
+        return workflowCache;
+    }
+
+    const workflows = await client.getWorkflows();
+    workflowCache = workflows;
+    lastWorkflowFetch = now;
+    return workflows;
+}
+
+// Function to get service account credentials
+function getServiceAccountCredentials() {
+    if (process.env.VISIONFI_SERVICE_ACCOUNT) {
+        // If environment variable is set, parse it as JSON
+        try {
+            return JSON.parse(process.env.VISIONFI_SERVICE_ACCOUNT);
+        } catch (error) {
+            console.error('Error parsing VISIONFI_SERVICE_ACCOUNT environment variable:', error);
+            throw new Error('Invalid VISIONFI_SERVICE_ACCOUNT environment variable format');
+        }
+    } else if (fs.existsSync('./visionfi_service_account.json')) {
+        // Fallback to local file if environment variable is not set
+        return JSON.parse(fs.readFileSync('./visionfi_service_account.json', 'utf8'));
+    } else {
+        throw new Error('No service account credentials found. Please set VISIONFI_SERVICE_ACCOUNT environment variable or provide visionfi_service_account.json file.');
+    }
+}
+
 // Home page with upload form
 app.get('/', (req, res) => {
-  res.render('index');
+    res.render('index');
 });
 
 // Upload handler with VisionFI call
 app.post('/upload', upload.single('pdf'), async (req, res) => {
-  try {
-    const filePath = req.file.path;
-    const fileBuffer = fs.readFileSync(filePath);
-    const fileName = req.file.originalname;
+    try {
+        console.log('📁 File received:', req.file.originalname);
+        const filePath = req.file.path;
+        const fileBuffer = fs.readFileSync(filePath);
+        const fileName = req.file.originalname;
 
-    const client = new VisionFi({
-      serviceAccountPath: './visionfi_service_account.json',
-    });
+        console.log('🔑 Initializing VisionFi client...');
+        const client = new VisionFi({
+            serviceAccountJson: getServiceAccountCredentials()
+        });
 
-    const workflows = await client.getWorkflows();
-    const workflow = workflows.data.find(
-      (wf) => wf.workflow_key === 'auto_invoice_processing'
-    );
+        console.log('📋 Fetching workflows...');
+        const workflows = await getWorkflows(client);
+        console.log('✅ Workflows fetched successfully');
+        
+        const workflow = workflows.data.find(
+            (wf) => wf.workflow_key === 'auto_invoice_processing'
+        );
 
-    if (!workflow) {
-      throw new Error('Workflow "auto_invoice_processing" not authorized.');
+        if (!workflow) {
+            throw new Error('Workflow "auto_invoice_processing" not authorized.');
+        }
+        console.log('✅ Found workflow:', workflow.workflow_key);
+
+        console.log('📤 Submitting document for analysis...');
+        const result = await client.analyzeDocument(fileBuffer, {
+            fileName,
+            analysisType: workflow.workflow_key,
+        });
+        console.log('✅ Document submitted successfully');
+        console.log('🔍 Analysis UUID:', result.uuid);
+
+        console.log('⏳ Starting to poll for results...');
+        // Using better polling parameters:
+        // - 5000ms (5 seconds) between polls
+        // - 30 attempts (2.5 minutes total)
+        // - Warning after 5 attempts
+        const final = await client.getResults(result.uuid, 5000, 30, 5);
+        console.log('✅ Results received successfully');
+        
+        const data = final.results.analysisResult;
+        console.log('📊 Analysis complete, rendering results...');
+
+        res.render('result', { data });
+    } catch (err) {
+        console.error('❌ Error:', err);
+        res.status(500).send('Something went wrong: ' + err.message);
     }
-
-    const result = await client.analyzeDocument(fileBuffer, {
-      fileName,
-      analysisType: workflow.workflow_key,
-    });
-
-    const final = await client.getResults(result.uuid, 3000, 20);
-    const data = final.results.analysisResult;
-
-    res.render('result', { data });
-  } catch (err) {
-    console.error(err);
-    res.status(500).send('Something went wrong: ' + err.message);
-  }
 });
 
 app.listen(PORT, () => {
-  console.log(`Server running at http://localhost:${PORT}`);
+    console.log(`Server running at http://localhost:${PORT}`);
 });

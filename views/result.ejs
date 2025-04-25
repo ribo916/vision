@@ -37,7 +37,7 @@
             border-radius: 1rem;
             box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
             width: 100%;
-            max-width: 32rem;
+            max-width: 48rem;
             border: 1px solid var(--border-color);
         }
 
@@ -51,11 +51,14 @@
             -webkit-text-fill-color: transparent;
         }
 
-        .results-content {
-            margin-top: 1.5rem;
+        h2 {
+            font-size: 1.5rem;
+            font-weight: 600;
+            margin: 2rem 0 1rem;
+            color: var(--text-color);
         }
 
-        .result-item {
+        .info-section {
             background-color: var(--bg-color);
             padding: 1rem;
             border-radius: 0.5rem;
@@ -63,26 +66,43 @@
             border: 1px solid var(--border-color);
         }
 
-        .result-item:last-child {
+        .info-item {
+            margin-bottom: 0.5rem;
+        }
+
+        .info-item:last-child {
             margin-bottom: 0;
         }
 
-        .result-label {
-            font-size: 0.875rem;
+        .info-label {
+            font-weight: 600;
             color: #9ca3af;
-            margin-bottom: 0.5rem;
-            text-transform: capitalize;
+            margin-right: 0.5rem;
         }
 
-        .result-value {
-            font-size: 1rem;
-            color: var(--text-color);
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 1rem;
+            background-color: var(--bg-color);
+            border-radius: 0.5rem;
+            overflow: hidden;
         }
 
-        .nested-item {
-            margin-left: 1rem;
-            padding-left: 1rem;
-            border-left: 2px solid var(--border-color);
+        th, td {
+            padding: 0.75rem;
+            text-align: left;
+            border: 1px solid var(--border-color);
+        }
+
+        th {
+            background-color: var(--card-bg);
+            font-weight: 600;
+            color: #9ca3af;
+        }
+
+        tr:nth-child(even) {
+            background-color: rgba(99, 102, 241, 0.05);
         }
 
         .back-button {
@@ -115,54 +135,60 @@
 <body>
     <div class="container">
         <h1>Results</h1>
-        <div class="results-content">
-            <% if (data) { %>
-                <% function renderValue(value, key) { %>
-                    <% if (typeof value === 'object' && value !== null) { %>
-                        <div class="nested-item">
-                            <% if (Array.isArray(value)) { %>
-                                <% value.forEach((item, index) => { %>
-                                    <div class="result-item">
-                                        <% if (typeof item === 'object') { %>
-                                            <% Object.entries(item).forEach(([k, v]) => { %>
-                                                <div class="result-label"><%= k %></div>
-                                                <div class="result-value"><%= v %></div>
-                                            <% }); %>
-                                        <% } else { %>
-                                            <div class="result-value"><%= item %></div>
-                                        <% } %>
-                                    </div>
-                                <% }); %>
-                            <% } else { %>
-                                <% Object.entries(value).forEach(([k, v]) => { %>
-                                    <div class="result-item">
-                                        <div class="result-label"><%= k %></div>
-                                        <% if (typeof v === 'object' && v !== null) { %>
-                                            <% renderValue(v, k); %>
-                                        <% } else { %>
-                                            <div class="result-value"><%= v %></div>
-                                        <% } %>
-                                    </div>
-                                <% }); %>
-                            <% } %>
-                        </div>
-                    <% } else { %>
-                        <div class="result-value"><%= value %></div>
-                    <% } %>
-                <% } %>
-
-                <% Object.entries(data).forEach(([key, value]) => { %>
-                    <div class="result-item">
-                        <div class="result-label"><%= key %></div>
-                        <% renderValue(value, key); %>
+        
+        <% if (data) { %>
+            <% if (data.vendor_information) { %>
+                <div class="info-section">
+                    <div class="info-item">
+                        <span class="info-label">Vendor:</span>
+                        <%= data.vendor_information.vendor_name.value %>
                     </div>
-                <% }); %>
-            <% } else { %>
-                <div class="result-item">
-                    <div class="result-value">No results available</div>
                 </div>
             <% } %>
-        </div>
+
+            <% if (data.totals) { %>
+                <div class="info-section">
+                    <div class="info-item">
+                        <span class="info-label">Total:</span>
+                        €<%= data.totals.total_amount.value %>
+                    </div>
+                </div>
+            <% } %>
+
+            <% if (data.invoice_metadata) { %>
+                <div class="info-section">
+                    <div class="info-item">
+                        <span class="info-label">Invoice No:</span>
+                        <%= data.invoice_metadata.invoice_number.value %>
+                    </div>
+                </div>
+            <% } %>
+
+            <% if (data.line_items && data.line_items.length > 0) { %>
+                <h2>Line Items</h2>
+                <table>
+                    <tr>
+                        <th>Description</th>
+                        <th>Quantity</th>
+                        <th>Unit Price</th>
+                        <th>Total</th>
+                    </tr>
+                    <% data.line_items.forEach(item => { %>
+                        <tr>
+                            <td><%= item.description.value %></td>
+                            <td><%= item.quantity.value %></td>
+                            <td><%= item.unit_price.value %></td>
+                            <td><%= item.total_price.value %></td>
+                        </tr>
+                    <% }) %>
+                </table>
+            <% } %>
+        <% } else { %>
+            <div class="info-section">
+                <div class="info-item">No results available</div>
+            </div>
+        <% } %>
+
         <a href="/" class="back-button">Upload Another File</a>
     </div>
 </body>
