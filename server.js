@@ -43,20 +43,28 @@ async function getWorkflows(client) {
 
 // Function to get service account credentials
 function getServiceAccountCredentials() {
+    // First try Render's secret file location
+    const renderSecretPath = '/etc/secrets/visionfi_service_account.json';
+    if (fs.existsSync(renderSecretPath)) {
+        return JSON.parse(fs.readFileSync(renderSecretPath, 'utf8'));
+    }
+    
+    // Then try local file
+    if (fs.existsSync('./visionfi_service_account.json')) {
+        return JSON.parse(fs.readFileSync('./visionfi_service_account.json', 'utf8'));
+    }
+    
+    // Finally try environment variable
     if (process.env.VISIONFI_SERVICE_ACCOUNT) {
-        // If environment variable is set, parse it as JSON
         try {
             return JSON.parse(process.env.VISIONFI_SERVICE_ACCOUNT);
         } catch (error) {
             console.error('Error parsing VISIONFI_SERVICE_ACCOUNT environment variable:', error);
             throw new Error('Invalid VISIONFI_SERVICE_ACCOUNT environment variable format');
         }
-    } else if (fs.existsSync('./visionfi_service_account.json')) {
-        // Fallback to local file if environment variable is not set
-        return JSON.parse(fs.readFileSync('./visionfi_service_account.json', 'utf8'));
-    } else {
-        throw new Error('No service account credentials found. Please set VISIONFI_SERVICE_ACCOUNT environment variable or provide visionfi_service_account.json file.');
     }
+    
+    throw new Error('No service account credentials found. Please provide visionfi_service_account.json as a secret file, local file, or VISIONFI_SERVICE_ACCOUNT environment variable.');
 }
 
 // Home page with upload form

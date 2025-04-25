@@ -24,19 +24,18 @@ The server will run on http://localhost:3000
 2. Connect your repository
 3. Set the following environment variables in Render:
    - `PORT`: The port number (Render will set this automatically)
-   - `VISIONFI_SERVICE_ACCOUNT`: Your VisionFi service account credentials as a JSON string
 
-To set the `VISIONFI_SERVICE_ACCOUNT` environment variable:
-1. Open your `visionfi_service_account.json` file
-2. Copy the entire contents
-3. In Render's environment variables section, paste the JSON as the value for `VISIONFI_SERVICE_ACCOUNT`
-
-Note: Make sure to properly escape any special characters in the JSON when pasting it into Render's environment variables.
+4. Add your service account credentials as a secret file:
+   - In the Render dashboard, go to your service's "Environment" section
+   - Click "Add Secret File"
+   - Name: `visionfi_service_account.json`
+   - Content: Paste the entire contents of your service account JSON file
+   - The file will be available at `/etc/secrets/visionfi_service_account.json` in your application
 
 ## Environment Variables
 
 - `PORT`: The port number the server will run on (default: 3000)
-- `VISIONFI_SERVICE_ACCOUNT`: JSON string containing VisionFi service account credentials
+- `VISIONFI_SERVICE_ACCOUNT`: (Optional) JSON string containing VisionFi service account credentials. Only used if secret file is not available.
 
 ## File Structure
 
